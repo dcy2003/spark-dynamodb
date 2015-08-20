@@ -11,3 +11,8 @@ lazy val root = (project in file(".")).
     libraryDependencies += "org.apache.spark" %% "spark-sql" % "1.4.1",
     libraryDependencies += "com.google.guava" % "guava" % "14.0.1"
   )
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case _ => MergeStrategy.first
+}
