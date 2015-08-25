@@ -10,7 +10,7 @@ DynamoDBRelation class extends BaseRelation with TableScan which returns RDD of 
 This library requires: 
 Spark 1.4.1
 Scala - 2.10.4
-AWS - 1.10.11
+AWS-Java-SDK - 1.10.11
 
 
 ## Features 

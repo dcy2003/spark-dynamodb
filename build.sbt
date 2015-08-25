@@ -4,7 +4,7 @@ lazy val root = (project in file(".")).
   settings(
     organization:="com.onzo",
     name := "spark-dynamodb",
-    version := "1.0",
+    version := "0.1.0",
     scalaVersion := "2.10.4",
     retrieveManaged := true,
     libraryDependencies += "com.amazonaws" % "aws-java-sdk" % "1.10.11",
