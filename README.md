@@ -39,7 +39,7 @@ val options = Map(
   "scanEntireTable" -> "false"
 )
 
-val df = sqlContext.read.format("com.onzo.spark.dynamodb”).
+val df = sqlContext.read.format("com.onzo.spark.dynamodb").
                     schema(schema).options(options).load()
 ```
 ## Building from source
