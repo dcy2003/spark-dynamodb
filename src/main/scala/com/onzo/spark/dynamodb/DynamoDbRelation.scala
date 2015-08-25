@@ -18,16 +18,18 @@ import scala.collection.mutable
 case class DynamoDBRelation(tableName: String,
            region: String,
            providedSchema: Option[StructType] = None,
-           scanEntireTable: Boolean = true)(@transient val providedSQLContext: SQLContext) extends BaseRelation with TableScan {
+           scanEntireTable: Boolean = true)(@transient val providedSQLContext: SQLContext)
+  extends BaseRelation with TableScan {
 
   @transient val clientConfig = new ClientConfiguration()
   @transient val credentials = new DefaultAWSCredentialsProviderChain()
-  @transient val dynamoDbClient = Region.getRegion(Regions.fromName(region)).createClient(classOf[AmazonDynamoDBClient], credentials, clientConfig)
+  @transient val dynamoDbClient = Region.getRegion(Regions.fromName(region))
+                                  .createClient(classOf[AmazonDynamoDBClient], credentials, clientConfig)
 
   val dynamoDbTable = dynamoDbClient.describeTable(tableName)
   val rateLimit = 25.0
 
-  override def sqlContext = providedSQLContext
+  override def sqlContext: SQLContext = providedSQLContext
 
   override val schema: StructType = providedSchema match {
     case Some(struct: StructType) => struct
@@ -99,7 +101,6 @@ case class DynamoDBRelation(tableName: String,
         case "S" => StructField(attributeDefinition.getAttributeName, StringType)
         case "N" => StructField(attributeDefinition.getAttributeName, LongType)
         case "B" => StructField(attributeDefinition.getAttributeName, BinaryType)
-        // Let's think on appropriate way to handle this
         case other => sys.error(s"Unsupported $other")
       }
     }

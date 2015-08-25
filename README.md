@@ -9,8 +9,8 @@ DynamoDBRelation class extends BaseRelation with TableScan which returns RDD of 
 ## Requirements 
 This library requires: 
 Spark 1.4.1
-Scala 
-AWS
+Scala - 2.10.4
+AWS - 1.10.11
 
 
 ## Features 
@@ -39,8 +39,7 @@ options.put("scanEntireTable","false")
 val df = sqlContext.read.format("com.onzo.spark.dynamodb").schema(schema).options(options).load()
 
 ```
-change log 
-
+## Change log 
 ## Building from source
 assembly plugin regerence 
 syntax for bash script 
