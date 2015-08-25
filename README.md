@@ -23,21 +23,24 @@ Depending on the attributes specified in schema, the API will only read these co
 
 ## Scala API 
 ```scala
-import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql._
+import org.apache.spark.sql.types._
 
-val schema = StructType(Seq
-                    (StructField("name", StringType),
-                     StructField("age", LongType)))
-                     
+val schema = StructType(
+  Seq(
+    StructField("name", StringType),
+    StructField("age", LongType)
+  )
+)
 
-val options = mutable.Map[String,String]()
-options.put("tableName", "users")
-options.put("region", "eu-west-1")
-options.put("scanEntireTable", "false")
+val options = Map(
+  "tableName" -> "users",
+  "region" -> "eu-west-1",
+  "scanEntireTable" -> "false"
+)
 
-val df = sqlContext.read.format("com.onzo.spark.dynamodb")
-                   .schema(schema).options(options).load()
-
+val df = sqlContext.read.format("com.onzo.spark.dynamodb”).
+                    schema(schema).options(options).load()
 ```
 ## Building from source
 This library is built using sbt. To build an assembly jar, simply run `sbt assembly` from the project root. 
