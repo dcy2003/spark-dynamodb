@@ -1,12 +1,12 @@
 package com.onzo.spark.dynamodb
 
-
+import com.amazonaws.ClientConfiguration
 import com.google.common.util.concurrent.RateLimiter
 import com.onzo.spark.util.{ReservedWords, DynamoAttributeValue}
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
-import com.amazonaws.regions.Regions
+import com.amazonaws.regions.{Regions, Region}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
-import com.amazonaws.services.dynamodbv2.model.{ReturnConsumedCapacity, AttributeDefinition, ScanRequest}
+import com.amazonaws.services.dynamodbv2.model._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.sources.{TableScan, BaseRelation}
@@ -15,39 +15,35 @@ import org.apache.spark.sql.types._
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
+case class DynamoDBRelation(tableName: String,
+           region: String,
+           providedSchema: Option[StructType] = None,
+           scanEntireTable: Boolean = true)(@transient val providedSQLContext: SQLContext) extends BaseRelation with TableScan {
 
-
-case class DynamoDbRelation(tableName: String,
-                            region: String,
-                            schemaP: Option[StructType] = None,
-                            rateLimit:Double = 25.0,
-                            permissionToConsumeP: Int = 1,
-                            scanEntireTable: Boolean = true )
-                            (sqlContextP: SQLContext) extends BaseRelation with TableScan {
-
-  @transient val credentials = new DefaultAWSCredentialsProviderChain().getCredentials
-  @transient val dynamoDbClient = new AmazonDynamoDBClient(credentials)
-  dynamoDbClient.setRegion(Regions.fromName(region))
+  @transient val clientConfig = new ClientConfiguration()
+  @transient val credentials = new DefaultAWSCredentialsProviderChain()
+  @transient val dynamoDbClient = Region.getRegion(Regions.fromName(region)).createClient(classOf[AmazonDynamoDBClient], credentials, clientConfig)
 
   val dynamoDbTable = dynamoDbClient.describeTable(tableName)
-  var permissionToConsume = permissionToConsumeP
-  override def sqlContext = sqlContextP
+  val rateLimit = 25.0
 
-  override val schema: StructType = schemaP match {
+  override def sqlContext = providedSQLContext
+
+  override val schema: StructType = providedSchema match {
     case Some(struct: StructType) => struct
     case _ => StructType(getSchema(dynamoDbTable.getTable.getAttributeDefinitions))
   }
-  private lazy val nameToField: Map[String, DataType] = schema.fields.map(f => f.name -> f.dataType).toMap
 
+  private lazy val nameToField: Map[String, DataType] = schema.fields.map(f => f.name -> f.dataType).toMap
 
   val projectionExpression = {
     val expression = new StringBuilder()
     val expressionNames = mutable.Map[String, String]()
     schema.fieldNames.map { fieldName =>
       if (ReservedWords.reservedWords.contains(fieldName.toUpperCase)) {
-        val key = "#".concat(fieldName)
+        val key = s"#$fieldName"
         expression.append(key).append(",")
-        expressionNames.put(key,fieldName)
+        expressionNames.put(key, fieldName)
       } else {
         expression.append(fieldName).append(",")
       }
@@ -60,8 +56,10 @@ case class DynamoDbRelation(tableName: String,
   }
 
   override def buildScan: RDD[Row] = {
+    var permitsToConsume = 1
     val rateLimiter = RateLimiter.create(rateLimit)
-    rateLimiter.acquire(permissionToConsume)
+
+    rateLimiter.acquire(permitsToConsume)
     val scanRequest =
       new ScanRequest()
         .withTableName(tableName)
@@ -69,29 +67,27 @@ case class DynamoDbRelation(tableName: String,
         .withProjectionExpression(projectionExpression._1)
         .withExpressionAttributeNames(projectionExpression._2.get)
     var scanResult = dynamoDbClient.scan(scanRequest)
-    val results = scanResult.getItems
+    val rowRDD = sqlContext.sparkContext.parallelize(scanResult.getItems)
 
-    if(scanEntireTable) {
-      permissionToConsume = (scanResult.getConsumedCapacity.getCapacityUnits - 1.0).toInt
-      if (permissionToConsume <= 0) permissionToConsume = 1
-
+    if (scanEntireTable) {
+      permitsToConsume = (scanResult.getConsumedCapacity.getCapacityUnits - 1.0).toInt
+      if (permitsToConsume <= 0) permitsToConsume = 1
 
       while (scanResult.getLastEvaluatedKey != null) {
-        rateLimiter.acquire(permissionToConsume)
+        rateLimiter.acquire(permitsToConsume)
         scanRequest.setExclusiveStartKey(scanResult.getLastEvaluatedKey)
         scanResult = dynamoDbClient.scan(scanRequest)
 
-        permissionToConsume = (scanResult.getConsumedCapacity.getCapacityUnits - 1.0).toInt
+        permitsToConsume = (scanResult.getConsumedCapacity.getCapacityUnits - 1.0).toInt
 
-        if (permissionToConsume <= 0) permissionToConsume = 1
-        results.addAll(scanResult.getItems)
+        if (permitsToConsume <= 0) permitsToConsume = 1
+        rowRDD.union(sqlContext.sparkContext.parallelize(scanResult.getItems))
       }
     }
-    val rowRDD = sqlContext.sparkContext.parallelize(results)
     rowRDD.map { result =>
       val values = schema.fieldNames.map { fieldName =>
         val data = nameToField.get(fieldName).get
-        DynamoAttributeValue.convert(result.get(fieldName),data)
+        DynamoAttributeValue.convert(result.get(fieldName), data)
       }
       Row.fromSeq(values)
     }
@@ -103,10 +99,10 @@ case class DynamoDbRelation(tableName: String,
         case "S" => StructField(attributeDefinition.getAttributeName, StringType)
         case "N" => StructField(attributeDefinition.getAttributeName, LongType)
         case "B" => StructField(attributeDefinition.getAttributeName, BinaryType)
+        // Let's think on appropriate way to handle this
         case other => sys.error(s"Unsupported $other")
       }
     }
   }
 }
-
 
