@@ -8,7 +8,7 @@ lazy val root = (project in file(".")).
     scalaVersion := "2.10.4",
     retrieveManaged := true,
     libraryDependencies += "com.amazonaws" % "aws-java-sdk" % "1.10.11",
-    libraryDependencies += "org.apache.spark" %% "spark-sql" % "1.4.1",
+    libraryDependencies += "org.apache.spark" %% "spark-sql" % "1.4.1" % "provided",
     libraryDependencies += "com.google.guava" % "guava" % "14.0.1"
   )
 publishTo := Some(Resolver.file("file",  new File(Path.userHome.absolutePath+"/.m2/repository")))

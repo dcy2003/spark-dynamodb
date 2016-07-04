@@ -3,7 +3,8 @@ package com.onzo.spark.dynamodb
 import com.amazonaws.ClientConfiguration
 import com.google.common.util.concurrent.RateLimiter
 import com.onzo.spark.util.{ReservedWords, DynamoAttributeValue}
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.auth.STSSessionCredentialsProvider
 import com.amazonaws.regions.{Regions, Region}
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient
 import com.amazonaws.services.dynamodbv2.model._
@@ -22,11 +23,13 @@ case class DynamoDBRelation(tableName: String,
   extends BaseRelation with TableScan {
 
   @transient val clientConfig = new ClientConfiguration()
-  @transient val credentials = new DefaultAWSCredentialsProviderChain()
-  @transient val dynamoDbClient = Region.getRegion(Regions.fromName(region))
-                                  .createClient(classOf[AmazonDynamoDBClient], credentials, clientConfig)
+  @transient val credentials = new BasicAWSCredentials({ACCESS_KEY_ID}, {SECRET_ACCESS_KEY})
+  // FIXME @transient val dynamoDbClient = Region.getRegion(Regions.fromName(region))
+  @transient val dynamoDbClient = Region.getRegion(Regions.US_EAST_1)
+                                  .createClient(classOf[AmazonDynamoDBClient], new STSSessionCredentialsProvider(credentials), clientConfig)
 
-  val dynamoDbTable = dynamoDbClient.describeTable(tableName)
+  // FIXME val dynamoDbTable = dynamoDbClient.describeTable(tableName)
+  val dynamoDbTable = dynamoDbClient.describeTable("StopPointArrivals")
   val rateLimit = 25.0
 
   override def sqlContext: SQLContext = providedSQLContext
@@ -67,7 +70,7 @@ case class DynamoDBRelation(tableName: String,
         .withTableName(tableName)
         .withReturnConsumedCapacity(ReturnConsumedCapacity.TOTAL)
         .withProjectionExpression(projectionExpression._1)
-        .withExpressionAttributeNames(projectionExpression._2.get)
+        //.withExpressionAttributeNames(projectionExpression._2.get)
     var scanResult = dynamoDbClient.scan(scanRequest)
     val rowRDD = sqlContext.sparkContext.parallelize(scanResult.getItems)
 

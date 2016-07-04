@@ -3,6 +3,7 @@
 
 # intellij project
 .idea
+*.iml
 
 # Created by https://www.gitignore.io
 
