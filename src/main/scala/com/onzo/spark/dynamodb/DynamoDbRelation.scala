@@ -18,18 +18,18 @@ import scala.collection.mutable
 
 case class DynamoDBRelation(tableName: String,
            region: String,
+           accessKeyId: String,
+           secretAccessKey: String,
            providedSchema: Option[StructType] = None,
            scanEntireTable: Boolean = true)(@transient val providedSQLContext: SQLContext)
   extends BaseRelation with TableScan {
 
   @transient val clientConfig = new ClientConfiguration()
-  @transient val credentials = new BasicAWSCredentials({ACCESS_KEY_ID}, {SECRET_ACCESS_KEY})
-  // FIXME @transient val dynamoDbClient = Region.getRegion(Regions.fromName(region))
-  @transient val dynamoDbClient = Region.getRegion(Regions.US_EAST_1)
+  @transient val credentials = new BasicAWSCredentials(accessKeyId, secretAccessKey)
+  @transient val dynamoDbClient = Region.getRegion(Regions.fromName(region))
                                   .createClient(classOf[AmazonDynamoDBClient], new STSSessionCredentialsProvider(credentials), clientConfig)
 
-  // FIXME val dynamoDbTable = dynamoDbClient.describeTable(tableName)
-  val dynamoDbTable = dynamoDbClient.describeTable("StopPointArrivals")
+  val dynamoDbTable = dynamoDbClient.describeTable(tableName)
   val rateLimit = 25.0
 
   override def sqlContext: SQLContext = providedSQLContext

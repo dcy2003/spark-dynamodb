@@ -21,8 +21,10 @@ class DefaultSource extends RelationProvider
     val tableName = parameters.getOrElse("tableName", sys.error("'tableName must be specified"))
     val region = parameters.getOrElse("region", sys.error("'region must be specified"))
     val scanEntireTable = parameters.getOrElse("scanEntireTable", "true")
+    val accessKeyId = parameters.getOrElse("accessKeyId", sys.error("'accessKeyId must be specified"))
+    val secretAccessKey = parameters.getOrElse("secretAccessKey", sys.error("'secretAccessKey must be specified"))
 
-    DynamoDBRelation(tableName, region, Option(schema), scanEntireTable.toBoolean)(sqlContext)
+    DynamoDBRelation(tableName, region, accessKeyId, secretAccessKey, Option(schema), scanEntireTable.toBoolean)(sqlContext)
   }
 
   override def createRelation(

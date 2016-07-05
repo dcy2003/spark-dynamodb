@@ -36,7 +36,9 @@ val schema = StructType(
 val options = Map(
   "tableName" -> "users",
   "region" -> "eu-west-1",
-  "scanEntireTable" -> "false"
+  "scanEntireTable" -> "false",
+  "accessKeyId" -> "FILL_ME_IN",
+  "secretAccessKey" -> "FILL_ME_IN"
 )
 
 val df = sqlContext.read.format("com.onzo.spark.dynamodb").
